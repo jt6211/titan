@@ -5,7 +5,6 @@ import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.thinkaurelius.titan.graphdb.database.InternalTitanGraph;
 import com.thinkaurelius.titan.graphdb.database.StandardTitanGraph;
 import com.tinkerpop.blueprints.*;
-import com.tinkerpop.blueprints.util.ExceptionFactory;
 import com.tinkerpop.blueprints.util.StringFactory;
 
 import java.util.Set;
@@ -32,24 +31,19 @@ public abstract class TitanBlueprintsGraph implements InternalTitanGraph {
     @Override
     public void stopTransaction(final Conclusion conclusion) {
         TitanTransaction tx = txs.get();
-        if (tx==null || tx.isClosed())
-            throw new IllegalStateException("No running transaction");
-        tx.stopTransaction(conclusion);
-        txs.remove();
-        openTx.remove(tx);
+        if (tx!=null) {
+            assert tx.isOpen();
+            tx.stopTransaction(conclusion);
+            txs.remove();
+            openTx.remove(tx);
+        }
     }
 
     private TitanTransaction internalStartTransaction() {
-        TitanTransaction tx = (TitanTransaction) startThreadTransaction();
+        TitanTransaction tx = (TitanTransaction) startTransaction();
         txs.set(tx);
         openTx.put(tx,Boolean.TRUE);
         return tx;
-    }
-
-    @Override
-    public void startTransaction() {
-        if (txs.get()!=null) throw ExceptionFactory.transactionAlreadyStarted();
-        getAutoStartTx();
     }
 
     private TitanTransaction getAutoStartTx() {

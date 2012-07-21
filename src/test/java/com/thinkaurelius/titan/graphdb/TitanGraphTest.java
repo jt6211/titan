@@ -231,10 +231,39 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
 		TitanProperty p = Iterables.getOnlyElement(n3.getProperties("uid"));
 		p.remove();
 		n3.addProperty("uid", 353);
+
+
 		clopen();
 		
 		n3 = tx.getVertex(nid);
 		assertEquals(353,n3.getProperty("uid"));
+        TitanEdge e2 = n3.addEdge("knows",tx.addVertex());
+	}
+	
+	@Test
+	public void testPropertyIndexPersistence() {
+		final String propName = "favorite_color";
+		final String sharedValue = "blue";
+		
+		makeStringPropertyKey(propName);
+		
+		TitanVertex alice = tx.addVertex();
+		TitanVertex bob = tx.addVertex();
+		
+		alice.addProperty(propName, sharedValue);
+		
+		clopen();
+
+		alice = tx.getVertex(alice.getID());
+		bob = tx.getVertex(bob.getID());
+		
+		assertEquals(sharedValue, alice.getProperty(propName));
+		assertEquals(null, bob.getProperty(propName));
+		
+		alice.removeProperty(propName);
+		bob.addProperty(propName, sharedValue);
+		
+		clopen();
 	}
 	
 	@Test
@@ -502,7 +531,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         for (int i=0;i<noVertices;i++) vs[i]=tx.getVertex(vs[i].getID());
         v = vs[0];
 
-        //Same queries as above but without memory loading
+        //Same queries as above but without memory loading        
         assertEquals(0,v.query().labels("follows").has("time",10, Query.Compare.LESS_THAN).count());
         assertEquals(10,v.query().labels("connect").direction(Direction.OUT).interval("time",3,31).count());
         assertEquals(10,v.query().labels("connect").direction(Direction.OUT).interval("time",3,31).vertexIds().size());
@@ -524,6 +553,7 @@ public abstract class TitanGraphTest extends TitanGraphTestCommon {
         assertEquals(20,Iterables.size(v.query().labels("connect","friend").direction(Direction.OUT).interval("time",3,33).vertexIds()));
         assertEquals(50,Iterables.size(v.query().labels("connect","friend","knows").has("weight",1.5).vertexIds()));
         assertEquals(33,v.query().labels("connect").direction(Direction.OUT).count());
+        assertEquals(99,Iterables.size(v.query().direction(Direction.OUT).vertices()));
 
     }
 

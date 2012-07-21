@@ -1,12 +1,9 @@
 package com.thinkaurelius.titan.blueprints;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.thinkaurelius.titan.StorageSetup;
 import com.thinkaurelius.titan.core.TitanFactory;
-import com.thinkaurelius.titan.core.TitanGraph;
-import com.thinkaurelius.titan.diskstorage.berkeleydb.je.BerkeleyJEHelper;
-import com.thinkaurelius.titan.testutil.MemoryAssess;
+import com.thinkaurelius.titan.diskstorage.berkeleydb.je.BerkeleyJEStorageManager;
 import com.tinkerpop.blueprints.*;
 import com.tinkerpop.blueprints.impls.GraphTest;
 import com.tinkerpop.blueprints.util.io.gml.GMLReaderTestSuite;
@@ -15,7 +12,6 @@ import com.tinkerpop.blueprints.util.io.graphson.GraphSONReaderTestSuite;
 
 import java.lang.reflect.Method;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
 
 /**
@@ -37,13 +33,13 @@ public class LocalBlueprintsTest extends GraphTest {
     }
 
     public void testEdgeTestSuite() throws Exception {
-        this.stopWatch();                   //Exclusions: retrieval by edge id is not supported
-        doTestSuite(new EdgeTestSuite(this),ImmutableSet.of("testGetEdges","testGetNonExistantEdges"));
+        this.stopWatch();
+        doTestSuite(new EdgeTestSuite(this));
         printTestPerformance("EdgeTestSuite", this.stopWatch());
     }
 
     public void testGraphTestSuite() throws Exception {
-        this.stopWatch();
+        this.stopWatch();                       //Excluded test case because toString representation is non-standard
         doTestSuite(new GraphTestSuite(this),ImmutableSet.of("testStringRepresentation"));
         printTestPerformance("GraphTestSuite", this.stopWatch());
     }
@@ -55,16 +51,16 @@ public class LocalBlueprintsTest extends GraphTest {
     }
 
     public void testKeyIndexableGraphTestSuite() throws Exception {
-        this.stopWatch();                                   //Exclusions: 1st because unsupported, 2nd for old test, 3rd does not close database
-        doTestSuite(new KeyIndexableGraphTestSuite(this), ImmutableSet.of("testAutoIndexKeyDroppingWithPersistence","testAutoIndexKeyManagementWithPersistence","testReIndexingOfElements"));
+        this.stopWatch();                                   //Excluded test cases because Titan does not yet support dropping or modifying key indexes
+        doTestSuite(new KeyIndexableGraphTestSuite(this), ImmutableSet.of("testAutoIndexKeyDroppingWithPersistence","testReIndexingOfElements"));
         printTestPerformance("KeyIndexableGraphTestSuite", this.stopWatch());
     }
 
-    /*public void testTransactionalGraphTestSuite() throws Exception {
+    public void testTransactionalGraphTestSuite() throws Exception {
         this.stopWatch();
-        doTestSuite(new TransactionalGraphTestSuite(this), ImmutableSet.of("testTransactionsForEdges"));
+        doTestSuite(new TransactionalTitanGraphTestSuite(this));
         printTestPerformance("TransactionalTitanGraphTestSuite", this.stopWatch());
-    }*/
+    }
 
     public void testGraphMLReaderTestSuite() throws Exception {
         this.stopWatch();
@@ -96,7 +92,9 @@ public class LocalBlueprintsTest extends GraphTest {
     }
 
     public void cleanUp() {
-        BerkeleyJEHelper.clearEnvironment(StorageSetup.getHomeDirFile());
+        BerkeleyJEStorageManager s = new BerkeleyJEStorageManager(
+                StorageSetup.getBerkeleyJEStorageConfiguration());
+        s.clearStorage();
         assertFalse(StorageSetup.getHomeDirFile().exists() && StorageSetup.getHomeDirFile().listFiles().length>0);
     }
 
@@ -111,7 +109,7 @@ public class LocalBlueprintsTest extends GraphTest {
     public void doTestSuite(TestSuite testSuite, Set<String> ignoreTests) throws Exception {
         startUp();
         cleanUp();
-        for (Method method : testSuite.getClass().getDeclaredMethods()) {
+        for (Method method : testSuite.getClass().getMethods()) {
             if (ignoreTests.contains(method.getName())
                     || !method.getName().startsWith("test")) continue;
             try {
