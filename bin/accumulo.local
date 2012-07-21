@@ -1,0 +1,2 @@
+storage.backend=accumulo
+storage.hostname=127.0.0.1
